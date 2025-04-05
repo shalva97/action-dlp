@@ -1,0 +1,54 @@
+name: Download YouTube Audio
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'youtube_links.txt'
+
+jobs:
+  download_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository code so the workflow can access it
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x' # Use any recent Python 3 version
+
+      # 3. Install yt-dlp and ffmpeg (required for audio extraction/conversion)
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      # 4. Create a directory to store downloaded audio files
+      - name: Create Download Directory
+        run: mkdir audio_files
+
+      # 5. Read the links file and download audio using yt-dlp
+      #    -x: Extract audio
+      #    --audio-format mp3: Convert audio to MP3
+      #    -o: Set output template (place files in 'audio_files' directory)
+      #    -a youtube_links.txt: Read URLs from this file (one URL per line)
+      #    -i: Ignore errors (continue processing even if one video fails)
+      - name: Download Audio from Links
+        run: |
+          echo "Starting downloads from youtube_links.txt..."
+          yt-dlp -i -x --audio-format mp3 -o 'audio_files/%(title)s.%(ext)s' -a youtube_links.txt
+          echo "Downloads finished."
+
+      # 6. Upload the downloaded audio files as artifacts
+      - name: Upload Audio Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-audio # Name of the artifact zip file
+          path: audio_files/ # Path to the directory containing the files to upload
+          if-no-files-found: warn # Optional: 'warn', 'error' or 'ignore' if no files are found
